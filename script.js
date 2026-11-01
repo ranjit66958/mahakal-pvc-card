@@ -85,9 +85,11 @@
     let rects;
     if (typeSelect.value === 'aadhaar') {
       // The supplied Aadhaar letter layout has the two card faces in the lower row.
+      // Tight inset crop to reduce the visible printed border around each card.
+      // Check the preview before printing; different PDF layouts may need different crop values.
       rects = [
-        {x:0.075*sw, y:0.675*sh, w:0.42*sw, h:0.19*sh},
-        {x:0.505*sw, y:0.675*sh, w:0.42*sw, h:0.19*sh}
+        {x:0.083*sw, y:0.681*sh, w:0.404*sw, h:0.178*sh},
+        {x:0.513*sw, y:0.681*sh, w:0.404*sw, h:0.178*sh}
       ];
     } else {
       // Best-effort split for other PDFs; inspect previews before printing.
