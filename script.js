@@ -1,9 +1,12 @@
 (() => {
   const fileInput = document.getElementById('pdfFile');
   const typeSelect = document.getElementById('cardType');
-  const canvas = document.getElementById('cardCanvas');
-  const ctx = canvas.getContext('2d');
+  const frontCanvas = document.getElementById('frontCanvas');
+  const backCanvas = document.getElementById('backCanvas');
+  const frontCtx = frontCanvas.getContext('2d');
+  const backCtx = backCanvas.getContext('2d');
   const empty = document.getElementById('emptyState');
+  const emptyBack = document.getElementById('emptyBack');
   const info = document.getElementById('fileInfo');
   const alertBox = document.getElementById('alert');
   const printBtn = document.getElementById('printBtn');
@@ -19,8 +22,10 @@
   function clearFile() {
     renderToken++;
     pdfDoc = null; currentPageImage = null;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    canvas.hidden = true; empty.style.display = 'flex';
+    frontCtx.clearRect(0, 0, frontCanvas.width, frontCanvas.height);
+    backCtx.clearRect(0, 0, backCanvas.width, backCanvas.height);
+    frontCanvas.hidden = true; backCanvas.hidden = true;
+    empty.style.display = 'flex'; emptyBack.style.display = 'flex';
     fileInput.value = ''; info.textContent = 'હજુ કોઈ PDF પસંદ કરી નથી.';
     printBtn.disabled = true; hideAlert();
   }
@@ -49,7 +54,7 @@
       await renderPage(1, token);
       if (token !== renderToken) return;
       printBtn.disabled = false;
-      showAlert(`PDF માં ${pdfDoc.numPages} પેજ છે. પ્રથમ પેજમાંથી કાર્ડનો ભાગ ઓળખીને PVC માપમાં ફિટ કરવાનો પ્રયાસ થયો છે.`);
+      showAlert(`PDF માં ${pdfDoc.numPages} પેજ છે. પ્રથમ પેજમાંથી આગળ અને પાછળની સાઇડ ક્રોપ કરી છે. બંને પ્રિવ્યૂ તપાસીને જ પ્રિન્ટ કરો.`);
     } catch (err) {
       if (token !== renderToken) return;
       showAlert('PDF વાંચી શકાઈ નથી. પાસવર્ડવાળી PDF સપોર્ટ થતી નથી; ફાઇલ ફરી ડાઉનલોડ કરીને પ્રયાસ કરો.');
@@ -74,50 +79,38 @@
 
   function drawCard() {
     if (!currentPageImage) return;
-    canvas.width = OUT_W; canvas.height = OUT_H;
     const sw = currentPageImage.width, sh = currentPageImage.height;
-    const probe = document.createElement('canvas');
-    probe.width = sw; probe.height = sh;
-    const pctx = probe.getContext('2d', { willReadFrequently: true });
-    pctx.fillStyle = '#fff'; pctx.fillRect(0, 0, sw, sh);
-    pctx.drawImage(currentPageImage, 0, 0);
-    let minX = 0, minY = 0, maxX = sw, maxY = sh;
-    try {
-      const data = pctx.getImageData(0, 0, sw, sh).data;
-      let left = sw, top = sh, right = -1, bottom = -1;
-      const step = Math.max(1, Math.floor(Math.max(sw, sh) / 900));
-      for (let y = 0; y < sh; y += step) {
-        for (let x = 0; x < sw; x += step) {
-          const i = (y * sw + x) * 4;
-          if (data[i] < 238 || data[i + 1] < 238 || data[i + 2] < 238) {
-            left = Math.min(left, x); top = Math.min(top, y);
-            right = Math.max(right, x); bottom = Math.max(bottom, y);
-          }
-        }
-      }
-      const boxArea = (right - left) * (bottom - top);
-      if (right > left && bottom > top && boxArea > sw * sh * 0.008 && boxArea < sw * sh * 0.92) {
-        const pad = Math.round(Math.max(right - left, bottom - top) * 0.015);
-        minX = Math.max(0, left - pad); minY = Math.max(0, top - pad);
-        maxX = Math.min(sw, right + pad); maxY = Math.min(sh, bottom + pad);
-      }
-    } catch (_) {}
-    const cropW = maxX - minX, cropH = maxY - minY;
-    const scale = Math.min(OUT_W / cropW, OUT_H / cropH);
-    const drawW = cropW * scale, drawH = cropH * scale;
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, OUT_W, OUT_H);
-    ctx.drawImage(currentPageImage, minX, minY, cropW, cropH,
-      (OUT_W - drawW) / 2, (OUT_H - drawH) / 2, drawW, drawH);
-    canvas.hidden = false;
-    empty.style.display = 'none';
+    frontCanvas.width = backCanvas.width = OUT_W;
+    frontCanvas.height = backCanvas.height = OUT_H;
+    let rects;
+    if (typeSelect.value === 'aadhaar') {
+      // The supplied Aadhaar letter layout has the two card faces in the lower row.
+      rects = [
+        {x:0.075*sw, y:0.675*sh, w:0.42*sw, h:0.19*sh},
+        {x:0.505*sw, y:0.675*sh, w:0.42*sw, h:0.19*sh}
+      ];
+    } else {
+      // Best-effort split for other PDFs; inspect previews before printing.
+      rects = [
+        {x:0.04*sw, y:0.10*sh, w:0.46*sw, h:0.80*sh},
+        {x:0.50*sw, y:0.10*sh, w:0.46*sw, h:0.80*sh}
+      ];
+    }
+    [[frontCtx, rects[0]],[backCtx, rects[1]]].forEach(([target, r]) => {
+      target.fillStyle = '#fff'; target.fillRect(0, 0, OUT_W, OUT_H);
+      target.drawImage(currentPageImage, r.x, r.y, r.w, r.h, 0, 0, OUT_W, OUT_H);
+    });
+    frontCanvas.hidden = false; backCanvas.hidden = false;
+    empty.style.display = 'none'; emptyBack.style.display = 'none';
   }
 
   printBtn.addEventListener('click', () => {
     if (!currentPageImage) return;
     const printWindow = window.open('', '_blank');
     if (!printWindow) { showAlert('પ્રિન્ટ માટે નવી વિન્ડો ખોલવાની મંજૂરી આપો.'); return; }
-    const imageData = canvas.toDataURL('image/png');
-    printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>PVC Card Print</title><style>@page{size:85.6mm 54mm;margin:0}html,body{margin:0;width:85.6mm;height:54mm}img{display:block;width:85.6mm;height:54mm}</style></head><body><img id="card" src="${imageData}" alt="PVC card"></body></html>`);
+    const frontData = frontCanvas.toDataURL('image/png');
+    const backData = backCanvas.toDataURL('image/png');
+    printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>PVC Card Front and Back</title><style>@page{size:85.6mm 54mm;margin:0}html,body{margin:0;padding:0}section{width:85.6mm;height:54mm;page-break-after:always;break-after:page}section:last-child{page-break-after:auto;break-after:auto}img{display:block;width:85.6mm;height:54mm}</style></head><body><section><img src="${frontData}" alt="Front"></section><section><img src="${backData}" alt="Back"></section></body></html>`);
     printWindow.document.close();
     printWindow.onload = () => { printWindow.focus(); printWindow.print(); };
   });

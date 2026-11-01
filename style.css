@@ -50,3 +50,31 @@ footer { padding: 18px; border-top: 1px solid #d9e2f0; color: #5b6980; text-alig
   #cardCanvas { width: 85.6mm !important; height: 54mm !important; }
   .empty { display: none !important; }
 }
+
+/* Two-sided PVC preview */
+.sides-stage { grid-template-columns: 1fr 1fr; align-items:start; gap:12px; }
+.side-label { margin:0 0 8px; text-align:center; font-weight:800; font-size:12px; }
+#frontCanvas, #backCanvas { display:block; width:100%; height:100%; object-fit:fill; }
+#frontCanvas[hidden], #backCanvas[hidden] { display:none; }
+@media(max-width:760px) { .sides-stage { grid-template-columns:1fr; } }
+@media print {
+  .sides-stage { display:block !important; }
+  .side-preview { width:85.6mm; height:54mm; page-break-after:always; break-after:page; }
+  .side-preview:last-child { page-break-after:auto; break-after:auto; }
+  .side-label { display:none !important; }
+  #frontCanvas, #backCanvas { width:85.6mm !important; height:54mm !important; }
+}
+
+/* Two-sided PVC preview */
+.sides-stage { grid-template-columns: 1fr 1fr; align-items:start; gap:12px; }
+.side-label { margin:0 0 8px; text-align:center; font-weight:800; font-size:12px; }
+#frontCanvas, #backCanvas { display:block; width:100%; height:100%; object-fit:fill; }
+#frontCanvas[hidden], #backCanvas[hidden] { display:none; }
+@media(max-width:760px) { .sides-stage { grid-template-columns:1fr; } }
+@media print {
+  .sides-stage { display:block !important; }
+  .side-preview { width:85.6mm; height:54mm; page-break-after:always; break-after:page; }
+  .side-preview:last-child { page-break-after:auto; break-after:auto; }
+  .side-label { display:none !important; }
+  #frontCanvas, #backCanvas { width:85.6mm !important; height:54mm !important; }
+}
